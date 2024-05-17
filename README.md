@@ -47,7 +47,7 @@ The whole design of the robot is heavily inspired in [this video](https://www.yo
 
 ## Build Guide
 
-> Build guide and circuit schema will be added with the first release. For now, only [build pictures](assets/build.pdf) are available.
+> Build guide and circuit schema will be added with the first release. For now, only [build pictures](assets/build) are available.
 
 ## License
 
