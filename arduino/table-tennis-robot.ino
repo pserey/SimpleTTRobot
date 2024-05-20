@@ -11,14 +11,34 @@ const int top = 11;
 
 // frequency pins (PWA)
 const int AFreq = 5;
-const int BFreq = 6; 
+const int BFreq = 6;
+
+// encoder velocity
+const int encPin = 2;
+volatile int pulseCount = 0;
+unsigned long previousMillis = 0;
+const unsigned long interval = 500;
+volatile int lastState = 0;
+
+// PID
+int globalRPM = 0;
+const int targetRPM = 60;
+
+// Kp, Ki, Kd
+const float Kp = 0.75;
+const float Ki = 0.2;
+const float Kd = 0;
+
+float previousError = 0;
+float integral = 0;
+float controlOutput = 0;
 
 int topVel = 0;
 int backVel = 0;
 const int step = 5;
-const int minVel = 20;
-const int maxVel = 35;
-const int freqVelocity = 50;
+const int minVel = 25;
+const int maxVel = 40;
+int freqVelocity = 40;
 
 // variables
 int freqState = 0;
@@ -50,8 +70,9 @@ int decreaseVelocity(int velocity) {
 
 void startFrequency() {
   freqState = 1;
-  analogWrite(AFreq, 70);
-  delay(100);
+
+  analogWrite(AFreq, 40);
+  delay(50);
   analogWrite(AFreq, freqVelocity);
 }
 
@@ -68,6 +89,55 @@ void unclogFrequency() {
   startFrequency();
 }
 
+void calculateRPM() {
+  int pulses = pulseCount;
+  pulseCount = 0;
+  // pulses * 60k (pulses in one minute)
+  // 23 * interval (23 holes * interval inspected)
+  globalRPM = (pulses * 60000) / (23 * interval);
+}
+
+void countPulse() {
+  int currentState = digitalRead(encPin);
+  if (currentState && !lastState) {
+    pulseCount++;
+  }
+  lastState = currentState;
+}
+
+void makePID() {
+  int error = targetRPM - globalRPM;
+  integral += error * (interval / 1000.0); // integral term
+  float derivative = (error - previousError) / (interval / 1000.0); // derivative term
+
+  float rawOutput = (Kp * error) + (Ki * integral) + (Kd * derivative); // PID formula
+  previousError = error; // Update previous error
+
+  // Smooth the control output with a low-pass filter
+  const float alpha = 0.1; // Smoothing factor (0 < alpha <= 1)
+  controlOutput = (alpha * rawOutput) + ((1 - alpha) * controlOutput);
+
+  // Limit the rate of change of the frequency velocity
+  const float maxChangeRate = 10; // Maximum change rate per interval
+  float newFreqVelocity = freqVelocity + constrain(controlOutput, -maxChangeRate, maxChangeRate);
+
+  // Constrain the new frequency velocity to be within allowed limits
+  freqVelocity = constrain(newFreqVelocity, 40, 60);
+
+  // Update motor speed
+  analogWrite(AFreq, freqVelocity);
+
+  // Print debug information
+  Serial.print("Target RPM: ");
+  Serial.print(targetRPM);
+  Serial.print(" | Current RPM: ");
+  Serial.print(globalRPM);
+  Serial.print(" | PID Output: ");
+  Serial.print(controlOutput);
+  Serial.print(" | Frequency Velocity: ");
+  Serial.println(freqVelocity);
+}
+
 void setup() {
   pinMode(top, OUTPUT);
   pinMode(back, OUTPUT);
@@ -75,11 +145,24 @@ void setup() {
   pinMode(BFreq, OUTPUT);
   pinMode(txPin, OUTPUT);
   pinMode(rxPin, INPUT);
+  pinMode(encPin, INPUT);
   BTSerial.begin(9600);
   Serial.begin(9600);
+  attachInterrupt(digitalPinToInterrupt(encPin), countPulse, RISING);
 }
 
 void loop() {
+
+
+  unsigned long currentMillis = millis();
+
+  if (currentMillis - previousMillis >= interval) {
+    previousMillis = currentMillis;
+    calculateRPM();
+    if (freqState) {
+      makePID();
+    }
+  }
 
   while (BTSerial.available() > 0) {
     char data = (char) BTSerial.read();

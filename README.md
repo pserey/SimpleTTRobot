@@ -31,7 +31,7 @@ The whole design of the robot is heavily inspired in [this video](https://www.yo
 - MDF laser-cut parts, or hand-cut if preferred (CAD available)
 - IPong V300 flywheels (**the main focus now is developing non-propietary flywheels**)
 - M3 and M4 screws and nuts
-- Acrylic or sturdy cardboard sheets
+- Acrylic or cardboard sheets
 
 ### Electronic Components
 - Arduino Nano or Uno microcontroller
@@ -41,6 +41,7 @@ The whole design of the robot is heavily inspired in [this video](https://www.yo
 - 1x 130-size 6V DC motor with gearbox
 - 2x L298N H-Bridge motor drivers
 - HC-05 Bluetooth receiver module
+- LM393 Speed Sensor module
 - 12V power supply
 
 > Further detail of materials such as quantities will be added in a BOM format and updated at the README.md after the first release.
